@@ -177,11 +177,11 @@ function buildLogger(verbose) {
 }
 
 function parseWhatItTakes(text) {
-  const re = /(?<=It takes more than)(.*)(?=This is episode)/s;
+  const re = /(?<=It takes more than)(.*)(?=to be a great engineer)/s;
   if (!re.exec(text)) {
     throw new Error(`Invalid text: ${text}`);
   }
-  return 'It takes more than' + re.exec(text)[0];
+  return 'It takes more than' + re.exec(text)[0] + 'to be a great engineer';
 };
 
 async function parseAudio(url, log) {
