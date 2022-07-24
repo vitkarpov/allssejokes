@@ -88,7 +88,7 @@ yargs(hideBin(process.argv))
       const failedEpisodes = [];
 
       await Promise.allSettled(
-        new Array(argv.from - argv.to).fill(0).map(async (_, i) => {
+        new Array(argv.to - argv.from).fill(0).map(async (_, i) => {
           const episode = argv.from + i;
           const verbose = argv.verbose;
           try {
