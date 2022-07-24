@@ -19,6 +19,14 @@ async function cut({ episode, verbose }) {
   const tmpFileName = `tmp_${fileName}`;
   const bucket = "sse-mp3";
 
+  log(`---Cut episode #${episode}---`);
+
+  const alreadyExists = await checkIfObjectExists(bucket, fileName);
+  if (alreadyExists) {
+    log('Already exists');
+    return;
+  }
+
   log("Start fetching MP3");
   await downloadFile(`https://download.softskills.audio/sse-${episode}.mp3`, tmpFileName);
   log("Finish fetching MP3");
@@ -41,7 +49,13 @@ async function transcribe({ episode, verbose }) {
   const log = buildLogger(verbose);
   const bucket = "sse-txt";
 
-  log(`---Episode #${episode}---`);
+  log(`---Transcribe episode #${episode}---`);
+
+  const alreadyExists = await checkIfObjectExists(bucket, fileName);
+  if (alreadyExists) {
+    log('Already exists');
+    return;
+  }
   log("Start parsing audio");
   const text = await parseAudio(
     `https://sse-mp3.s3.eu-west-1.amazonaws.com/sse-${episode}.mp3`,
@@ -194,6 +208,20 @@ async function createBucketIfNotExists(name) {
         });
       } else {
         resolve(data.Location);
+      }
+    });
+  });
+}
+
+async function checkIfObjectExists(bucket, name) {
+  return new Promise((resolve, reject) => {
+    s3.headObject({ Bucket: bucket, Key: name }, (err) => {
+      if (err && err.name === 'NotFound') {
+        resolve(false);
+      } else if (err) {
+        reject(err);
+      } else {
+        resolve(true);
       }
     });
   });
