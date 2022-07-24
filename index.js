@@ -16,19 +16,15 @@ const speechAPI = new RevAiApiClient(process.env.REV_API_KEY);
 async function cut({ episode, verbose }) {
   const log = buildLogger(verbose);
   const fileName = `sse-${episode}.mp3`;
+  const tmpFileName = `tmp_${fileName}`;
   const bucket = "sse-mp3";
 
   log("Start fetching MP3");
-  await downloadFile(
-    `https://download.softskills.audio/sse-${episode}.mp3`,
-    `full_${fileName}`
-  );
-  // TODO: promise above resolves before the writable stream closes
-  await wait(1000);
+  await downloadFile(`https://download.softskills.audio/sse-${episode}.mp3`, tmpFileName);
   log("Finish fetching MP3");
 
   MP3Cutter.cut({
-    src: `full_${fileName}`,
+    src: tmpFileName,
     target: fileName,
     start: 0,
     end: 30,
@@ -37,6 +33,8 @@ async function cut({ episode, verbose }) {
   log("Start uploading to S3");
   await uploadFile(bucket, fileName, fs.createReadStream(fileName), true);
   log("Finish uploading to S3");
+
+  await Promise.all([removeFile(tmpFileName), removeFile(fileName)]);
 }
 
 async function transcribe({ episode, verbose }) {
@@ -58,6 +56,42 @@ async function transcribe({ episode, verbose }) {
 
 yargs(hideBin(process.argv))
   .command(
+    "all [from] [to]",
+    "run for a range of episodes",
+    (yargs) => {
+      return yargs
+        .positional("from", {
+          describe: "start episode number",
+          default: 103,
+        })
+        .positional("to", {
+          describe: "end episode number",
+          default: 313,
+        });
+    },
+    async (argv) => {
+      let processed = 0;
+      const failedEpisodes = [];
+
+      await Promise.allSettled(
+        new Array(argv.from - argv.to).fill(0).map(async (i) => {
+          const episode = argv.from + i;
+          const verbose = argv.verbose;
+          try {
+            await cut({ episode, verbose });
+            await transcribe({ episode, verbose });
+            processed++;
+          } catch (e) {
+            failedEpisodes.push(i);
+            console.log(`Failed episode #${i}: ${e}`);
+          }
+        })
+      );
+
+      console.log(`Processed ${processed} episodes, failed: ${failedEpisodes}`);
+    }
+  )
+  .command(
     "run [episode]",
     "cut & transcribe",
     (yargs) => {
@@ -71,7 +105,7 @@ yargs(hideBin(process.argv))
         await cut(argv);
         await transcribe(argv);
       } catch (e) {
-        console.log(`Failed transcribe: ${e}`);
+        console.log(`Failed: ${e}`);
       }
     }
   )
@@ -88,7 +122,7 @@ yargs(hideBin(process.argv))
       try {
         await transcribe(argv);
       } catch (e) {
-        console.log(`Failed transcribe: ${e}`);
+        console.log(`Failed: ${e}`);
       }
     }
   )
@@ -186,17 +220,30 @@ async function uploadFile(bucket, name, body, isPublic = false) {
   });
 }
 
-async function wait(ms) {
+function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function downloadFile(url, targetFile) {
+function removeFile(file) {
+  return new Promise((resolve, reject) => {
+    fs.unlink(file, (err) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    })
+  });
+}
+
+function downloadFile(url, dst) {
   return new Promise((resolve, reject) => {
     https
       .get(url, (response) => {
-        response.pipe(fs.createWriteStream(targetFile));
+        const s = fs.createWriteStream(dst);
+        response.pipe(s);
+        response.on("end", resolve);
       })
-      .on("error", reject)
-      .on("finish", resolve);
+      .on("error", reject);
   });
 }
