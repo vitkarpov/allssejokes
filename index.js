@@ -50,7 +50,7 @@ async function transcribe({ episode, verbose }) {
   log("Finish parsing audio");
 
   log("Start uploading to S3");
-  await uploadFile(bucket, `episode-${episode}.txt`, text);
+  await uploadFile(bucket, `episode-${episode}.txt`, parseWhatItTakes(text));
   log("Finish uploading to S3");
 }
 
@@ -103,6 +103,11 @@ function buildLogger(verbose) {
     }
   };
 }
+
+function parseWhatItTakes(text) {
+  const re = /(?<=It takes more than)(.*)(?=This is episode)/s;
+  return 'It takes more than' + re.exec(text)[0];
+};
 
 async function parseAudio(url, log) {
   const { id } = await speechAPI.submitJob({
