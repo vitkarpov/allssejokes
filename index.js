@@ -55,6 +55,24 @@ async function transcribe({ episode, verbose }) {
 }
 
 yargs(hideBin(process.argv))
+.command(
+  "run [episode]",
+  "cut & transcribe",
+  (yargs) => {
+    return yargs.positional("episode", {
+      describe: "episode number",
+      default: 0,
+    });
+  },
+  async (argv) => {
+    try {
+      await cut(argv);
+      await transcribe(argv);
+    } catch (e) {
+      console.log(`Failed transcribe: ${e}`);
+    }
+  }
+)
   .command(
     "transcribe [episode]",
     "parse audio & upload the transcript to S3",
