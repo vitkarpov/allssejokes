@@ -3,6 +3,9 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import dotenv from "dotenv";
 import AWS from "aws-sdk";
+import MP3Cutter from "mp3-cutter";
+import https from "https";
+import fs from "fs";
 
 AWS.config.update({ region: "eu-west-1" });
 dotenv.config();
@@ -10,18 +13,38 @@ dotenv.config();
 const s3 = new AWS.S3();
 const speechAPI = new RevAiApiClient(process.env.REV_API_KEY);
 
+async function cut({ episode, verbose }) {
+  const log = buildLogger(verbose);
+  const fileName = `sse-${episode}.mp3`;
+  const bucket = "sse-mp3";
+
+  log("Start fetching MP3");
+  await downloadFile(
+    `https://download.softskills.audio/sse-${episode}.mp3`,
+    `full_${fileName}`
+  );
+  log("Finish fetching MP3");
+
+  MP3Cutter.cut({
+    src: `full_${fileName}`,
+    target: fileName,
+    start: 0,
+    end: 30,
+  });
+
+  log("Start uploading to S3");
+  await uploadFile(bucket, fileName, fs.createReadStream(fileName), true);
+  log("Finish uploading to S3");
+}
+
 async function transcribe({ episode, verbose }) {
   const log = buildLogger(verbose);
-  const bucket = "what-does-it-take-to-be-a-great-engineer";
-
-  log("Start creating an S3 bucket");
-  await createBucketIfNotExists(bucket);
-  log("Finish creating the bucket");
+  const bucket = "sse-txt";
 
   log(`---Episode #${episode}---`);
   log("Start parsing audio");
   const text = await parseAudio(
-    `https://download.softskills.audio/sse-${episode}.mp3`,
+    `https://sse-mp3.s3.eu-west-1.amazonaws.com/sse-${episode}.mp3`,
     log
   );
   log("Finish parsing audio");
@@ -46,6 +69,23 @@ yargs(hideBin(process.argv))
         await transcribe(argv);
       } catch (e) {
         console.log(`Failed transcribe: ${e}`);
+      }
+    }
+  )
+  .command(
+    "cut [episode]",
+    "cut MP3 to first 30 seconds & upload to S3",
+    (yargs) => {
+      return yargs.positional("episode", {
+        describe: "episode number",
+        default: 0,
+      });
+    },
+    async (argv) => {
+      try {
+        await cut(argv);
+      } catch (e) {
+        console.log(`Failed cut: ${e}`);
       }
     }
   )
@@ -100,18 +140,38 @@ async function createBucketIfNotExists(name) {
   });
 }
 
-async function uploadFile(bucket, name, body) {
+async function uploadFile(bucket, name, body, isPublic = false) {
+  await createBucketIfNotExists(bucket);
   return new Promise((resolve, reject) => {
-    s3.upload({ Bucket: bucket, Body: body, Key: name }, (err, data) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(data.Location);
+    s3.upload(
+      {
+        Bucket: bucket,
+        Body: body,
+        Key: name,
+        ACL: isPublic ? "public-read" : "private",
+      },
+      (err, data) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(data.Location);
+        }
       }
-    });
+    );
   });
 }
 
 async function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function downloadFile(url, targetFile) {
+  return new Promise((resolve, reject) => {
+    https
+      .get(url, (response) => {
+        response.pipe(fs.createWriteStream(targetFile));
+      })
+      .on("error", reject)
+      .on("finish", resolve);
+  });
 }
