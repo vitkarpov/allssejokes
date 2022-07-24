@@ -23,6 +23,8 @@ async function cut({ episode, verbose }) {
     `https://download.softskills.audio/sse-${episode}.mp3`,
     `full_${fileName}`
   );
+  // TODO: promise above resolves before the writable stream closes
+  await wait(1000);
   log("Finish fetching MP3");
 
   MP3Cutter.cut({
