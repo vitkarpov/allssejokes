@@ -24,43 +24,38 @@ async function run({
     return;
   }
   const log = buildLogger(verbose);
-  let parsed = 0;
 
+  console.log(`Start processing ${to - from + 1} episodes, hold tight...`);
+
+  log('Start creating an S3 bucket');
+  const bucket = "what-does-it-take-to-be-a-great-engineer";
+  try {
+    await createBucketIfNotExists(bucket);
+  } catch (e) {
+    console.error(e);
+    return;
+  }
+  log('Finish creating the bucket');
+
+  let processed = 0;
+  log(`---Episode #${i}---`);
   for (let i = from; i <= to; i++) {
-    log(`Start parsing episode #${i}`);
+    log(`Start parsing`);
     try {
       const text = await parseAudio(`https://download.softskills.audio/sse-${i}.mp3`, log);
-      log(`Finish parsing episode #${i}`);
+      log(`Finish parsing`);
 
-      stream.push(parseWhatItTakes(text));
-      parsed++;
+      const body = parseWhatItTakes(text);
+      log('Start uploading to S3');
+      await uploadFile(bucket, `episode-${i}.txt`, body);
+      log('Finish uploading to S3');
+      processed++;
     } catch (e) {
       console.error(e);
-      console.log(`Failed to parse episode #${i}`);
+      console.log(`Failed to parse`);
     }
   }
-  log(`Parsed ${parsed} items.`);
-  stream.push(null);
-
-  if (parsed > 0) {
-    log('Start creating an S3 bucket');
-    const bucket = "what-does-it-take-to-be-a-great-engineer";
-    try {
-      await createBucketIfNotExists(bucket);
-    } catch (e) {
-      console.error(e);
-      return;
-    }
-    log('Finish creating the bucket');
-    log('Start uploading to S3');
-    try {
-      await uploadFile(bucket, `${Date.now()}.txt`, stream);
-    } catch (e) {
-      console.error(e);
-      return;
-    }
-    log('Finish uploading to S3');
-  }
+  console.log(`Processed ${parsed} items. All done`);
 }
 
 yargs(hideBin(process.argv))
@@ -133,9 +128,9 @@ async function createBucketIfNotExists(name) {
   });
 }
 
-async function uploadFile(bucket, name, stream) {
+async function uploadFile(bucket, name, body) {
   return new Promise((resolve, reject) => {
-    s3.upload({ Bucket: bucket, Body: stream, Key: name }, (err, data) => {
+    s3.upload({ Bucket: bucket, Body: body, Key: name }, (err, data) => {
       if (err) {
         reject(err);
       } else {
