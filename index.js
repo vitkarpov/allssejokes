@@ -27,9 +27,11 @@ async function cut({ episode, verbose }) {
     return;
   }
 
-  log("Start fetching MP3");
-  await downloadFile(`https://download.softskills.audio/sse-${episode}.mp3`, tmpFileName);
-  log("Finish fetching MP3");
+  if (!fs.existsSync(tmpFileName)) {
+    log("Start fetching MP3");
+    await downloadFile(`https://download.softskills.audio/sse-${episode}.mp3`, tmpFileName);
+    log("Finish fetching MP3");
+  }
 
   MP3Cutter.cut({
     src: tmpFileName,
@@ -97,13 +99,14 @@ yargs(hideBin(process.argv))
             await transcribe({ episode, verbose });
             processed++;
           } catch (e) {
-            failedEpisodes.push(i);
-            console.log(`Failed episode #${i}: ${e}`);
+            failedEpisodes.push(e);
           }
         })
       );
 
-      console.log(`Processed ${processed} episodes, failed: ${failedEpisodes}`);
+      console.log(`Processed ${processed} episodes}`);
+      console.log(`--Failed--`);
+      console.log(failedEpisodes.join('\n'));
     }
   )
   .command(
@@ -175,6 +178,9 @@ function buildLogger(verbose) {
 
 function parseWhatItTakes(text) {
   const re = /(?<=It takes more than)(.*)(?=This is episode)/s;
+  if (!re.exec(text)) {
+    throw new Error(`Invalid text: ${text}`);
+  }
   return 'It takes more than' + re.exec(text)[0];
 };
 
