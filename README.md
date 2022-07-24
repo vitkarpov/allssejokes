@@ -9,7 +9,13 @@ It takes more than wondering to be a great software engineer, doesn't it?
 🚀 Here's the podcast parser that:
 
 - grabs specified episode (or a range) from SSE archive
-- parses audio with Rev.AI
+- parses first 30 seconds of the audio file (with Rev.AI)
 - uploads the joke to S3 (in a separate file)
 
-Now I can publish the full archive on Twitter.
+Now I have the ultimate wisdom saved in S3. Thank to Dave Smith & Jamison Dance!
+
+```
+$ node index.js --help
+```
+
+Feel free to play with it if yoo want but you'll need your own API keys (check out .env) to make it work.
