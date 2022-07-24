@@ -47,6 +47,7 @@ async function cut({ episode, verbose }) {
 
 async function transcribe({ episode, verbose }) {
   const log = buildLogger(verbose);
+  const fileName = `episode-${episode}.txt`;
   const bucket = "sse-txt";
 
   log(`---Transcribe episode #${episode}---`);
@@ -64,7 +65,7 @@ async function transcribe({ episode, verbose }) {
   log("Finish parsing audio");
 
   log("Start uploading to S3");
-  await uploadFile(bucket, `episode-${episode}.txt`, parseWhatItTakes(text));
+  await uploadFile(bucket, fileName, parseWhatItTakes(text));
   log("Finish uploading to S3");
 }
 
