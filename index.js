@@ -104,7 +104,7 @@ yargs(hideBin(process.argv))
         })
       );
 
-      console.log(`Processed ${processed} episodes}`);
+      console.log(`Processed ${processed} episodes`);
       console.log(`--Failed--`);
       console.log(failedEpisodes.join('\n'));
     }
@@ -177,11 +177,11 @@ function buildLogger(verbose) {
 }
 
 function parseWhatItTakes(text) {
-  const re = /(?<=It takes more than)(.*)(?=to be a great engineer)/s;
+  const re = /(?<=akes more than)(.*)(?=to be a great)/s;
   if (!re.exec(text)) {
     throw new Error(`Invalid text: ${text}`);
   }
-  return 'It takes more than' + re.exec(text)[0] + 'to be a great engineer';
+  return 'It takes more than' + re.exec(text)[0] + 'to be a great software engineer';
 };
 
 async function parseAudio(url, log) {
