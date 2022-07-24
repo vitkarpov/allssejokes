@@ -18,4 +18,4 @@ Now I have the ultimate wisdom saved in S3. Thank to Dave Smith & Jamison Dance!
 $ node index.js --help
 ```
 
-Feel free to play with it if yoo want but you'll need your own API keys (check out .env) to make it work.
+Feel free to play with it if you want but you'll need your own API keys (check out .env) to make it work.
